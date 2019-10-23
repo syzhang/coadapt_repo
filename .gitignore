@@ -1,0 +1,8 @@
+*.dcm
+*.ps
+*.nii
+*.nii.gz
+*.hdr
+*.img
+ROI_AAL/
+.ipynb_checkpoints/

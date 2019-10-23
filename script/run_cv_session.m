@@ -7,7 +7,7 @@ function result = run_cv_session(PAR)
 
     PAR.TOPDIR = fileparts(pwd);
     result = [];
-    numROIs = 10; % number of ROI masks
+    numROIs = 1; % number of ROI masks
 
     for ii = 1:numROIs
         % which roi to use
@@ -21,30 +21,31 @@ function result = run_cv_session(PAR)
         if PAR.ta == '1' && PAR.te == '1' % training with day 1, testing with day 1
             PAR.tadir = [FEATUREDIR, 'tmpl_d1_d1/'];
             PAR.tedir = PAR.tadir;
-            PAR.scan_info_ta = [PARADIR, 'scan_idx/scan_idx', PAR.scanidx_suff, '.mat'];
+            PAR.scan_info_ta = [PARADIR, 'scan_idx_d1/scan_idx', PAR.scanidx_suff, '.mat'];
             PAR.scan_info_te = PAR.scan_info_ta;
         elseif PAR.ta == '1' && PAR.te == '2' % training with day 1, testing with day 2
             PAR.tadir = [FEATUREDIR, 'tmpl_d1_d1/'];
             PAR.tedir = [FEATUREDIR, 'tmpl_d1_d2/'];
-            PAR.scan_info_ta = [PARADIR, 'scan_idx/scan_idx', PAR.scanidx_suff, '.mat'];
-            PAR.scan_info_te = [PARADIR, 'scan_idx_rt/scan_idx', PAR.scanidx_suff, '.mat'];
+            PAR.scan_info_ta = [PARADIR, 'scan_idx_d1/scan_idx', PAR.scanidx_suff, '.mat'];
+            PAR.scan_info_te = [PARADIR, 'scan_idx_d2/scan_idx', PAR.scanidx_suff, '.mat'];
         elseif PAR.ta == '2' && PAR.te == '2' % training with day 2, testing with day 2
             PAR.tadir = [FEATUREDIR, 'tmpl_d2_d2/'];
             PAR.tedir = PAR.tadir;
-            PAR.scan_info_ta = [PARADIR, 'scan_idx_rt/scan_idx', PAR.scanidx_suff, '.mat'];
+            PAR.scan_info_ta = [PARADIR, 'scan_idx_d2/scan_idx', PAR.scanidx_suff, '.mat'];
             PAR.scan_info_te = PAR.scan_info_ta;
         elseif PAR.ta == '2' && PAR.te == '1' % training with day 2, testing with day 1
             PAR.tadir = [FEATUREDIR, 'tmpl_d2_d2/'];
             PAR.tedir = [FEATUREDIR, 'tmpl_d2_d1/'];
-            PAR.scan_info_ta = [PARADIR, 'scan_idx_rt/scan_idx', PAR.scanidx_suff, '.mat'];
-            PAR.scan_info_te = [PARADIR, 'scan_idx/scan_idx', PAR.scanidx_suff, '.mat'];
+            PAR.scan_info_ta = [PARADIR, 'scan_idx_d2/scan_idx', PAR.scanidx_suff, '.mat'];
+            PAR.scan_info_te = [PARADIR, 'scan_idx_d1/scan_idx', PAR.scanidx_suff, '.mat'];
         end
 
         % load features
         featFile_ta = dir([PAR.tadir, num2str(PAR.roiuse, '%03d'), filesep, 'feature_*.mat']);
         featFile_te = dir([PAR.tedir, num2str(PAR.roiuse, '%03d'), filesep, 'feature_*.mat']);
-        temp = strsplit(featFile_ta.name(1:end - 4), '_');
-        PAR.roiName = temp{end}
+        fname = featFile_ta.name;
+        temp = strsplit(fname, '_');
+        PAR.roiName = temp{end}(1:end - 4);
 
         % run main check function
         [acc, auc, sen, spe, nv] = SVM_param_balance_tate(PAR);
@@ -59,7 +60,7 @@ function result = run_cv_session(PAR)
         result_sess = [1:6]';
         result_ta = repmat(str2num(PAR.ta), size(acc, 1), size(acc, 2));
         result_te = repmat(str2num(PAR.te), size(acc, 1), size(acc, 2));
-        % result = ['ROI','Accuracy','AUC','Sensitivity','Specificity','#Voxels','Session','Train (day)','Test (day)'];
+        % result_head = ['ROI','Accuracy','AUC','Sensitivity','Specificity','#Voxels','Session','Train (day)','Test (day)'];
         result_all = [result_roi, result_acc, result_auc, result_sen, result_spe, result_nv, result_sess, result_ta, result_te];
         result = [result; result_all];
     

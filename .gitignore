@@ -4,5 +4,7 @@
 *.nii.gz
 *.hdr
 *.img
+*.txt
+*.mat
 ROI_AAL/
 .ipynb_checkpoints/

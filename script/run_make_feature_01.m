@@ -7,7 +7,8 @@ function [] = run_make_feature_01(PAR)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     % subject list
-    sjList = 1:19;
+    % sjList = 1:19;
+    sjList = 1;
 
     for ii = 1:length(sjList)
 
@@ -25,10 +26,10 @@ function [] = run_make_feature_01(PAR)
             PAR.T1DIR  = [PAR.SUBDIR,'/t1/'];
             PAR.ROIDIR = [PAR.SUBDIR,'/ROI/d',PAR.day,'/'];
             PAR.PARADIR= [PAR.SUBDIR,'/params/'];
+            PAR.FEATDIR= [PAR.SUBDIR,'/features_scantrend/'];
             
             % progressive detrend (as in real-time)
             make_roi_signal_scantrend(PAR);
-            PAR.FEATDIR= [PAR.SUBDIR,'/features_scantrend/'];
 
             if ( ~exist( PAR.PARADIR ) ), mkdir( PAR.PARADIR ); end
             if ( ~exist( PAR.FEATDIR ) ), mkdir( PAR.FEATDIR ); end
@@ -55,9 +56,9 @@ function [] = make_roi_signal_scantrend(PAR)
     
         % load label info
         if dd == 1
-            scan_info = load([PAR.PARADIR,'scan_idx/scan_idx',scanidx_suff,'.mat']); % for d1 data
+            scan_info = load([PAR.PARADIR,'scan_idx_d1/scan_idx',scanidx_suff,'.mat']); % for d1 data
         elseif dd == 2
-            scan_info = load([PAR.PARADIR,'scan_idx_rt/scan_idx',scanidx_suff,'.mat']); % for d2 data
+            scan_info = load([PAR.PARADIR,'scan_idx_d2/scan_idx',scanidx_suff,'.mat']); % for d2 data
         end
 
         scan_idx = scan_info.scan_idx;

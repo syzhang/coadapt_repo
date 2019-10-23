@@ -1,61 +1,51 @@
 function [] = run_train_classifier_03()
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Classifier training
-% - train SLR classifiers
-% - prepare files needed to run day 2 experiment
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Classifier training
+    % - train SLR classifiers
+    % - prepare files needed to run day 2 experiment
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     % subject list
-    sjList = 1:19;
+    % sjList = 1:19;
+    sjList = 1;
 
     % add SLR toolbox to path
+    PAR.TOPDIR = fileparts(pwd);
     toolboxDir = fullfile(PAR.TOPDIR, 'SLR1.51');
     addpath(toolboxDir);
-    
-    numROIs = 10;
 
-    for dd = 1:2
-        PAR.day = num2str(dd);
+    numROIs = 1;
 
-        for ii = 1:length(sjList)
+    for ii = 1:length(sjList)
 
-            PAR.name = [num2str(sjList(ii), '%02d')];
-            PAR.TOPDIR = fileparts(pwd);
-            PAR.scanidx_suff = '_rest2test3'; %scan idx file suffix (restNtestN)
+        PAR.name = [num2str(sjList(ii), '%02d')];
+        PAR.scanidx_suff = '_rest2test3'; %scan idx file suffix (restNtestN)
 
-            for jj = 1:numROIs
-                % which roi to use
-                PAR.roiuse = jj;
+        for jj = 1:numROIs
+            % which roi to use
+            PAR.roiuse = jj;
 
-                % feature directory
-                FEATUREDIR = [PAR.TOPDIR, '/dat/', PAR.name, filesep, 'features_scantrend/'];
+            % feature directory
+            FEATUREDIR = [PAR.TOPDIR, '/dat/', PAR.name, filesep, 'features_scantrend/'];
+            PAR.FEATDIR = [FEATUREDIR, 'tmpl_d1_d1/']; % day 1 data aligned to day 1 reference
+            featFile = dir([PAR.FEATDIR, num2str(PAR.roiuse, '%03d'), filesep, 'feature_*.mat']);
+            featFile
+            temp = strsplit(featFile.name(1:end - 4), '_');
+            PAR.roiName = temp{end};
 
-                if PAR.day == 1
-                    PAR.FEATDIR = [FEATUREDIR, 'tmpl_d1_d1']; % day 1 data aligned to day 1 reference
-                elseif PAR.day == 2
-                    PAR.FEATDIR = [FEATUREDIR, 'tmpl_d2_d2']; % day 2 data aligned to day 2 reference
-                end
+            % run SLR and saving weights
+            SLR_nonCV_balance(PAR);
+            make_roi_template(PAR);
+            make_roi_weight(PAR);
 
-                featFile = dir([PAR.FEATDIR, num2str(PAR.roiuse, '%03d'), filesep, 'feature_*.mat']);
-                temp = strsplit(featFile.name(1:end - 4), '_');
-                PAR.roiName = temp{end};
+        end % end jj
 
-                % run SLR and saving weights
-                SLR_nonCV_balance(PAR);
-                make_roi_template(PAR);
-                make_roi_weight(PAR);
+        % move reference
+        move_dicom(PAR);
 
-            end % end jj
-
-            % move reference 
-            move_dicom(PAR);
-
-        end % end ii
-
-    end % end dd
+    end % end ii
 
 end % end function
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -70,13 +60,8 @@ function [] = SLR_nonCV_balance(PAR)
     PARADIR = [DATDIR, name, '/params/'];
     FEATDIR = PAR.FEATDIR;
 
-    if PAR.day == '1'
-        SLRDIR = [TOPDIR, '/SLR/d1/'];
-        scan_info = load([PARADIR, 'scan_idx/scan_idx', scanidx_suff, '.mat']);
-    elseif PAR.day == '2'
-        SLRDIR = [TOPDIR, '/SLR/d2/'];
-        scan_info = load([PARADIR, 'scan_idx_rt/scan_idx', scanidx_suff, '.mat']);
-    end
+    SLRDIR = [TOPDIR, '/SLR/'];
+    scan_info = load([PARADIR, 'scan_idx_d1/scan_idx', scanidx_suff, '.mat']);
 
     useroi = PAR.roiuse; % ROI to use
     trial_label = scan_info.trial_label;
@@ -99,12 +84,12 @@ function [] = SLR_nonCV_balance(PAR)
         dum_feat = DAT.feature{csess};
         dum_label = DAT.label(:, csess);
         dum_sess = repmat(csess, length(dum_label), 1);
-        
+
         % balancing number of samples
         h_num = sum(dum_label == 1);
         l_num = sum(dum_label == -1);
         min_num = min([h_num, l_num]);
-        
+
         % randomly choose samples
         h_idx = find(dum_label == 1);
         l_idx = find(dum_label == -1);
@@ -117,12 +102,12 @@ function [] = SLR_nonCV_balance(PAR)
         chosen_feat = dum_feat(chosen_idx, :);
         chosen_label = dum_label(chosen_idx, :);
         chosen_sess = dum_sess(chosen_idx, :);
-        
+
         % concat all session
         feat_all = [feat_all; chosen_feat];
         label_all = [label_all; chosen_label];
         sess_all = [sess_all; chosen_sess];
-    
+
     end % end csess
 
     DATA.X = feat_all;
@@ -174,30 +159,20 @@ function [] = make_roi_template(PAR)
     PARADIR = [DATDIR, name, '/params/'];
     FEATDIR = PAR.FEATDIR;
 
-    if PAR.day == '1'
-        scan_info = load([PARADIR, 'scan_idx/scan_idx', scanidx_suff, '.mat']);
-        SAVEDIR = [DATDIR, name, '/templates/d1/'];
-    elseif PAR.day == '2'
-        scan_info = load([PARADIR, 'scan_idx_rt/scan_idx', scanidx_suff, '.mat']);
-        SAVEDIR = [DATDIR, name, '/templates/d2/'];
-    end
+    scan_info = load([PARADIR, 'scan_idx_d1/scan_idx', scanidx_suff, '.mat']);
+    SAVEDIR = [DATDIR, name, '/templates/'];
     if (~exist(SAVEDIR)), mkdir(SAVEDIR); end
 
     trial_label = scan_info.trial_label;
     nsess = size(trial_label, 2);
 
-    if PAR.day == 1
-        load([PARADIR, 'roi_signal_scantrend/tmpl_d1_d1/', num2str(useroi, '%03d'), filesep, 'ROISIG_rs.mat']); % load raw ROI signal
-    elseif PAR.day == 2
-        load([PARADIR, 'roi_signal_scantrend/tmpl_d2_d2/', num2str(useroi, '%03d'), filesep, 'ROISIG_rs.mat']); % load raw ROI signal
-    end
-
+    load([PARADIR, 'roi_signal_scantrend/tmpl_d1_d1/', num2str(useroi, '%03d'), filesep, 'ROISIG_rs.mat']); % load raw ROI signal
     load([FEATDIR, num2str(useroi, '%03d'), filesep, 'feature_', PAR.roiName]); % load 'feature', 'label', 'ROILIST'
 
     usescan = find(scan_info.scan_idx(:, 1:nsess) ~= 0);
     template_sig = mean(ROISIG_rs(usescan, :), 1)';
     ROISIG = spm_read_vols(spm_vol(ROILIST(useroi, :)));
-    FNIIDIR = fullfile(DATDIR, name, '1stNii', ['d', PAR.day]);
+    FNIIDIR = fullfile(DATDIR, name, '1stNii', 'd1');
     dum = dir(fullfile(FNIIDIR, '*.nii'));
     dummy = spm_vol(fullfile(FNIIDIR, dum(1).name));
 
@@ -222,17 +197,10 @@ function [] = make_roi_weight(PAR)
     DATDIR = [TOPDIR, '/dat/'];
     name = PAR.name;
 
-    if PAR.day == '1'
-        SLRDIR = [TOPDIR, '/SLR/d1/'];
-        OUTDIR = [TOPDIR, '/res/d1/', name, filesep];
-        TEMPSIG = spm_read_vols(spm_vol([DATDIR, name, '/templates/d1/template.nii']));
-        load([DATDIR, name, filesep, 'params/roi_signal_scantrend/tmpl_d1_d1/ROILIST'])% load ROILIST
-    elseif PAR.day == '2'
-        SLRDIR = [TOPDIR, '/SLR/d2/'];
-        OUTDIR = [TOPDIR, '/res/d2/', name, filesep];
-        TEMPSIG = spm_read_vols(spm_vol([DATDIR, name, '/templates/d2/template.nii']));
-        load([DATDIR, name, filesep, 'params/roi_signal_scantrend/tmpl_d2_d2/ROILIST'])% load ROILIST
-    end
+    SLRDIR = [TOPDIR, '/SLR/'];
+    OUTDIR = [TOPDIR, '/res/weight_txt/', name, filesep];
+    TEMPSIG = spm_read_vols(spm_vol([DATDIR, name, '/templates/template.nii']));
+    load([DATDIR, name, filesep, 'params/roi_signal_scantrend/tmpl_d1_d1/ROILIST'])% load ROILIST
 
     SUBSLRDIR = [SLRDIR, filesep, name, filesep];
     useroi = PAR.roiuse;
@@ -271,14 +239,9 @@ function [] = move_dicom(PAR)
     TOPDIR = PAR.TOPDIR;
     DATDIR = [TOPDIR, '/dat/'];
     name = PAR.name;
-    DCMDIR = [DATDIR, name, '/1stEPI/'];
+    OUTDIR = [TOPDIR, '/res/weight_txt/', name, filesep];
+    DCMDIR = [DATDIR, name, '/1stEPI/d1/'];
     DCMfile = dir([DCMDIR, '/*.dcm']);
-
-    if PAR.day == '1'
-        OUTDIR = [TOPDIR, '/res/d1/', name, filesep];
-    elseif PAR.day == '2'
-        OUTDIR = [TOPDIR, '/res/d2/', name, filesep];
-    end
 
     % copy dicom over to result dir
     copyfile([DCMDIR, DCMfile.name], [OUTDIR, '001_000004_000001.dcm'])

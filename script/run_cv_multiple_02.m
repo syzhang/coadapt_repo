@@ -6,7 +6,9 @@ function result_mult = run_cv_multiple_02()
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     % subject list
-    sjList = 1:19;
+    % sjList = 1:19;
+    sjList = 1;
+
     % number of CV iterations
     numIteration = 5;
 
@@ -24,7 +26,7 @@ function result_mult = run_cv_multiple_02()
 
                 for ii = 1:numIteration
                     % calls CV function
-                    result = run_check_session(PAR);
+                    result = run_cv_session(PAR);
                     
                     % recording results
                     res_size = size(result);
@@ -41,12 +43,21 @@ function result_mult = run_cv_multiple_02()
     end % end dd
 
     % saving results
-    SAVEDIR_RESUlTS = fullfile('..', 'res');
+    SAVEDIR_RESUlTS = fullfile('..', 'res', 'cv_results');
     if ~exist(SAVEDIR_RESUlTS); mkdir(SAVEDIR_RESUlTS); end
 
-    % write results csv
-    T_head = ['ROI', 'Accuracy', 'AUC', 'Sensitivity', 'Specificity', '#Voxels', 'Session', 'Train (day)', 'Test (day)', 'sj', 'iter'];
-    T = result_mult;
-    csvwrite([SAVEDIR_RESUlTS, '/result_mult.txt'], T);
+    % writing header to csv
+    cHeader = {'ROI', 'Accuracy', 'AUC', 'Sensitivity', 'Specificity', '#Voxels', 'Session', 'Train (day)', 'Test (day)', 'sj', 'iter'};
+    commaHeader = [cHeader;repmat({','},1,numel(cHeader))]; % insert commaas
+    commaHeader = commaHeader(:)';
+    textHeader = cell2mat(commaHeader); %cHeader in text with commas
+
+    % write header to file
+    fid = fopen([SAVEDIR_RESUlTS, '/result_mult.txt'],'w'); 
+    fprintf(fid,'%s\n',textHeader)
+    fclose(fid)
+
+    % write data to end of file
+    dlmwrite([SAVEDIR_RESUlTS, '/result_mult.txt'], result_mult, '-append');
 
 end % end function

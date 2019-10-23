@@ -12,37 +12,43 @@ function [] = run_preprocessing_00()
     % subject list
     sjList = 1:19;
 
+    % SPM12 directory
+    tempDir = userpath;
+    PAR.spmdir = fullfile(tempDir, 'spm12');
+
+    % set number of dummy scans
+    PAR.numdum = 3; 
+
     for ii = 1:length(sjList)
 
+        PAR.name = [num2str(sjList(ii), '%02d')];
+        PAR.TOPDIR = fileparts(pwd);
+
+        % defining data directory
+        PAR.SUBDIR = fullfile(PAR.TOPDIR, 'dat', PAR.name, filesep);
+        PAR.T1DIR = fullfile(PAR.SUBDIR, 't1', filesep);
+        PAR.ROIDIR = fullfile(PAR.TOPDIR, 'dat', 'MNI_ROI_to_use', filesep);
+
         for dd = 1:2 % days
-            PAR.name = [num2str(sjList(ii), '%02d')];
-            PAR.TOPDIR = fileparts(pwd);
             PAR.day = num2str(dd);
-
-            % SPM12 directory
-            tempDir = userpath;
-            PAR.spmdir = fullfile(tempDir, 'spm12');
-            
-            % set number of dummy scans
-            PAR.numdum = 3; 
-
-            % defining data directory
-            PAR.SUBDIR = fullfile(PAR.TOPDIR, 'dat', PAR.name, filesep);
-            PAR.T1DIR = fullfile(PAR.SUBDIR, 't1', filesep);
-            PAR.ROIDIR = fullfile(PAR.TOPDIR, 'dat', 'MNI_ROI_to_use', filesep);
 
             % preprocessing functions start here
             dicomimport(PAR); % dicom import
             movedummy(PAR); % remove dummy
             create_first(PAR); % copy reference
-            run_realign(PAR); % realign
 
             % register to 1st EPI reference
             if ( ~exist( fullfile(PAR.T1DIR, 'mmprage.nii') ) )
                 run_deformation_1(PAR); % only do this once to save time
             end
             run_deformation_ROI(PAR); % coreg ROIs to 1st EPI
+
         end % end dd
+
+        for ddd = 1:2 % days
+            PAR.day = num2str(ddd);
+            run_realign(PAR); % realign
+        end % end ddd
 
     end % end ii
 
@@ -167,12 +173,26 @@ function [] = create_first(PAR)
     SUBDIR = PAR.SUBDIR;
     EPIDIR = [SUBDIR, filesep, 'd', PAR.day, '/'];
     FEPIDIR = [SUBDIR, filesep, '1stEPI/d', PAR.day, '/'];
+    FNIIDIR = [SUBDIR, filesep, '1stNii/d', PAR.day, '/'];
     if (~exist(FEPIDIR)), mkdir(FEPIDIR); end
+    if (~exist(FNIIDIR)), mkdir(FNIIDIR); end
 
     % copy first EPI
     epi_files = dir(fullfile(EPIDIR));
     fepi_file_name = epi_files(3 + 3).name; % 3 for list to start in matlab (first two are .. and ., then 3 dummy scans)
     copyfile(fullfile(EPIDIR, fepi_file_name), fullfile(FEPIDIR, fepi_file_name));
+
+    % convert 1st EPI to nii
+    dicom_file_name = dir(FEPIDIR);
+    dicom_file_name(1:2) = [];
+    FEPI_file_name = fullfile(FEPIDIR, dicom_file_name.name);
+    hdr = spm_dicom_headers(FEPI_file_name);
+    opts     = 'all';
+    root_dir = 'flat';
+    format   = spm_get_defaults('images.format');
+    out_dir  = FNIIDIR;	% output dir
+    nifti = spm_dicom_convert(hdr, opts, root_dir, format, out_dir);
+    templ_nifti_fname = nifti.files{1};
 
 end
 
@@ -214,7 +234,8 @@ function [] = run_realign(PAR)
         if (~exist(outdir)), mkdir(outdir); end
         movefile([SUBDIR, 'EPI/d', num2str(dd), '/r*.nii'], outdir)
         movefile([SUBDIR, '1stNii/d', PAR.day, '/rp*.txt'], outdir)
-    end %dd
+    
+    end % end dd
 
 end
 

@@ -1,10 +1,9 @@
 *.dcm
-*.ps
 *.nii
-*.nii.gz
-*.hdr
-*.img
 *.txt
 *.mat
+*.hdr
+*.img
+!.gitkeep
 ROI_AAL/
 .ipynb_checkpoints/

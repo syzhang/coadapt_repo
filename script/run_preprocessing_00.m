@@ -1,4 +1,4 @@
-function [] = run_preprocessing_00()
+function [] = run_preprocessing_00(sj)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Preprocessing
 % Functions to prepare dicom files and ROIs
@@ -10,18 +10,20 @@ function [] = run_preprocessing_00()
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     % subject list
-    sjList = 1:19;
+    % sjList = 1:19;
 
     % SPM12 directory
-    tempDir = userpath;
+    % tempDir = userpath;
+    tempDir = 'C:\Users\syz\Documents\MATLAB';
     PAR.spmdir = fullfile(tempDir, 'spm12');
 
     % set number of dummy scans
     PAR.numdum = 3; 
 
-    for ii = 1:length(sjList)
+    % for ii = 1:length(sjList)
+    for ii = sj
 
-        PAR.name = [num2str(sjList(ii), '%02d')];
+        PAR.name = [num2str(ii, '%02d')];
         PAR.TOPDIR = fileparts(pwd);
 
         % defining data directory
@@ -29,20 +31,18 @@ function [] = run_preprocessing_00()
         PAR.T1DIR = fullfile(PAR.SUBDIR, 't1', filesep);
         PAR.ROIDIR = fullfile(PAR.TOPDIR, 'dat', 'MNI_ROI_to_use', filesep);
 
+        % t1 process segmentation
+        dicomimport_t1(PAR); % import dicom for t1
+        % register to 1st EPI reference
+        run_deformation_1(PAR); % only do this once to save time
+
         for dd = 1:2 % days
             PAR.day = num2str(dd);
-
             % preprocessing functions start here
             dicomimport(PAR); % dicom import
             movedummy(PAR); % remove dummy
             create_first(PAR); % copy reference
-
-            % register to 1st EPI reference
-            if ( ~exist( fullfile(PAR.T1DIR, 'mmprage.nii') ) )
-                run_deformation_1(PAR); % only do this once to save time
-            end
             run_deformation_ROI(PAR); % coreg ROIs to 1st EPI
-
         end % end dd
 
         for ddd = 1:2 % days
@@ -56,8 +56,53 @@ end % end function
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function [] = dicomimport_t1(PAR)
+    % import T1 dicom files
+
+    % T1 dicom convert
+    % finding t1 dcm files
+    dcm_files_t1 = spm_select('FPList', PAR.T1DIR, '^*.dcm$')
+
+    matlabbatch{1}.spm.util.dicom.data = cellstr(dcm_files_t1);
+    matlabbatch{1}.spm.util.dicom.root = 'flat';
+    matlabbatch{1}.spm.util.dicom.outdir = cellstr(PAR.T1DIR);
+    matlabbatch{1}.spm.util.dicom.convopts.format = 'nii';
+    matlabbatch{1}.spm.util.dicom.convopts.icedims = 0;
+
+    spm_jobman('run', matlabbatch);
+
+    % change name to mprage
+    if (~exist(fullfile(PAR.T1DIR, 'mprage.nii')))
+        t1filename = dir([PAR.T1DIR, filesep, '*.nii']);
+        movefile([PAR.T1DIR, filesep, t1filename(1).name], [PAR.T1DIR, filesep, 'mprage.nii'])
+    end
+
+end % function 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function [] = run_deformation_1(PAR)
+    % coregistration and segmentation of t1 
+
+    % Coregister t1 to spm template t1
+    single_subject_t1 = fullfile(PAR.spmdir, 'canonical', 'single_subj_T1.nii');
+    current_subject_t1 = fullfile(PAR.T1DIR, 'mprage.nii');
+    matlabbatch{1}.spm.spatial.coreg.estimate.ref = cellstr(single_subject_t1);
+    matlabbatch{1}.spm.spatial.coreg.estimate.source = cellstr([current_subject_t1]);
+
+    % segmentation of coregistered t1
+    matlabbatch{2}.spm.spatial.preproc.channel.vols = cellstr(current_subject_t1);
+    matlabbatch{2}.spm.spatial.preproc.channel.write = [0 1];
+    matlabbatch{2}.spm.spatial.preproc.warp.write = [1 1];
+
+    [~, prov] = spm_jobman('run', matlabbatch);
+
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [] = dicomimport(PAR)
-    % import dicom files for EPIs and T1
+    % import dicom files for EPIs
     
     name = PAR.name;
     addpath(genpath(PAR.spmdir))
@@ -68,13 +113,12 @@ function [] = dicomimport(PAR)
     TOPDIR = PAR.TOPDIR;
     SUBDIR = PAR.SUBDIR;
     BACKUP_epi = [SUBDIR, filesep, 'd', PAR.day, '/'];
-    BACKUP_t1 = [SUBDIR, filesep, 't1/'];
     epi_dir = [SUBDIR, filesep, 'EPI/d', PAR.day, '/'];
 
     backup_epi_dir = dir(BACKUP_epi);
     backup_epi_dir(1:2) = [];
-    t1_dir = dir(BACKUP_t1);
-    t1_dir = [BACKUP_t1, t1_dir(3).name];
+    % t1_dir = dir(BACKUP_t1)
+    % t1_dir = [BACKUP_t1, t1_dir(3).name];
     j = 1;
 
     T1DIR = PAR.T1DIR;
@@ -109,23 +153,7 @@ function [] = dicomimport(PAR)
         j = j + 1;
     end
 
-    % T1 dicom convert
-    % finding t1 dcm files
-    dcm_files_t1 = spm_select('FPList', t1_dir, '^*.dcm$')
-
-    matlabbatch{j}.spm.util.dicom.data = cellstr(dcm_files_t1);
-    matlabbatch{j}.spm.util.dicom.root = 'flat';
-    matlabbatch{j}.spm.util.dicom.outdir = cellstr(T1DIR);
-    matlabbatch{j}.spm.util.dicom.convopts.format = 'nii';
-    matlabbatch{j}.spm.util.dicom.convopts.icedims = 0;
-    j = j + 1;
-
     spm_jobman('run', matlabbatch);
-
-    if (~exist(fullfile(PAR.T1DIR, 'mprage.nii')))
-        t1filename = dir([T1DIR, filesep, '*.nii']);
-        movefile([T1DIR, filesep, t1filename(1).name], [T1DIR, filesep, 'mprage.nii'])
-    end
 
 end
 
@@ -236,26 +264,6 @@ function [] = run_realign(PAR)
         movefile([SUBDIR, '1stNii/d', PAR.day, '/rp*.txt'], outdir)
     
     end % end dd
-
-end
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [] = run_deformation_1(PAR)
-    % coregistration and segmentation of t1 
-
-    % Coregister t1 to spm template t1
-    single_subject_t1 = fullfile(PAR.spmdir, 'canonical', 'single_subj_T1.nii');
-    current_subject_t1 = fullfile(PAR.T1DIR, 'mprage.nii');
-    matlabbatch{1}.spm.spatial.coreg.estimate.ref = cellstr(single_subject_t1);
-    matlabbatch{1}.spm.spatial.coreg.estimate.source = cellstr([current_subject_t1]);
-
-    % segmentation of coregistered t1
-    matlabbatch{2}.spm.spatial.preproc.channel.vols = cellstr(current_subject_t1);
-    matlabbatch{2}.spm.spatial.preproc.channel.write = [0 1];
-    matlabbatch{2}.spm.spatial.preproc.warp.write = [1 1];
-
-    [~, prov] = spm_jobman('run', matlabbatch);
 
 end
 

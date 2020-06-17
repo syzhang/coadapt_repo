@@ -7,3 +7,5 @@
 !.gitkeep
 ROI_AAL/
 .ipynb_checkpoints/
+notebook/
+load_ascii_data.m

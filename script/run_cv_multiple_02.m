@@ -5,6 +5,7 @@ function result_mult = run_cv_multiple_02()
 % - runs multiple subjects/iterations to produce overall stats
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+    addpath('../SLR1.51/')
     % subject list
     % sjList = 1:19;
     sjList = 1;
@@ -26,7 +27,7 @@ function result_mult = run_cv_multiple_02()
 
                 for ii = 1:numIteration
                     % calls CV function
-                    result = run_cv_session(PAR);
+                    result = run_cv_session_svm(PAR);
                     
                     % recording results
                     res_size = size(result);

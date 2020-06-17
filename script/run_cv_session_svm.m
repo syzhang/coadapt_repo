@@ -1,4 +1,4 @@
-function result = run_cv_session(PAR)
+function result = run_cv_session_svm(PAR)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Cross validation fucntions
 % - check decoder performance by running CV 

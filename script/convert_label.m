@@ -2,6 +2,7 @@
 
 clear
 addpath('../../coadaptask/coadapt_experiment/experiment/')
+% addpath('E:/coadapt_task_all/coadaptask/coadapt_experiment/experiment/utility/');
 sjList = 1:19;
 
 for d = 1:2
@@ -11,6 +12,7 @@ for d = 1:2
         subject = ['adpt', num2str(sjList(sj), '%02d')]; % input txt data
         subject_rt = [num2str(sjList(sj), '%02d')];
         coadaptaskDir = '../../coadaptask';
+        % coadaptaskDir = 'E:/coadapt_task_all/coadaptask';
 
         TOPDIR = fullfile('..', 'dat', subject_rt);
 
@@ -49,6 +51,7 @@ for d = 1:2
             % load task conditions from behavioural files
             % (this is a proprietary function that reads ascii txt files produced in the experiment, not included in this repo)
             stim_data = load_ascii_data(txt_dir, behavFiles(ii).name);
+            stim_data.data
 
             % getting shock time and conditions
             shockLevel = stim_data.data.painlevel;

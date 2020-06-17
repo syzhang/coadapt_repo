@@ -1,4 +1,4 @@
-function [] = run_make_feature_01(PAR)
+function [] = run_make_feature_01(sj)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Feature extraction
 % Functions to extract features for decoder training
@@ -8,14 +8,16 @@ function [] = run_make_feature_01(PAR)
 
     % subject list
     % sjList = 1:19;
-    sjList = 1;
+    % sjList = 1;
 
-    for ii = 1:length(sjList)
+    % for ii = 1:length(sjList)
+    for ii = sj
 
         for dd = 1:2 % days
 
             % file directory
-            PAR.name   = [num2str(sjList(ii),'%02d')];
+            % PAR.name   = [num2str(sjList(ii),'%02d')];
+            PAR.name   = [num2str(ii,'%02d')];
             PAR.day = num2str(dd);
             PAR.TOPDIR = fileparts(pwd);
 
@@ -23,6 +25,7 @@ function [] = run_make_feature_01(PAR)
             PAR.scanidx_suff = '_rest2test3'; % scan idx file suffix (restNtestN)
             PAR.DATDIR = [PAR.TOPDIR,'/dat/'];
             PAR.SUBDIR = [PAR.DATDIR,PAR.name,filesep];
+            PAR.EPIDIR = [PAR.SUBDIR,'/EPI/'];
             PAR.T1DIR  = [PAR.SUBDIR,'/t1/'];
             PAR.ROIDIR = [PAR.SUBDIR,'/ROI/d',PAR.day,'/'];
             PAR.PARADIR= [PAR.SUBDIR,'/params/'];
@@ -36,9 +39,12 @@ function [] = run_make_feature_01(PAR)
 
         end % end dd
 
+        % remove EPI folder to save discspace
+        rmdir(PAR.EPIDIR, 's')
+
     end % end ii
 
-end
+end % end function
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
